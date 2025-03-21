@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model domainModelGraph {
+  id          String            @id @default(cuid())
+  name        String
+  description String
+  nodes       domainModelNode[]
+  edges       domainModelEdge[]
+}
+
+model domainModelNode {
+  id                 String           @id
+  label              String
+  description        String?
+  tag                String?
+  positionX          Float
+  positionY          Float
+  graph              domainModelGraph @relation(fields: [domainModelGraphId], references: [id], onDelete: Cascade)
+  domainModelGraphId String
+
+  outgoingEdges domainModelEdge[] @relation(name: "SourceEdge")
+  incomingEdges domainModelEdge[] @relation(name: "TargetEdge")
+
+  LearningResources LearningResource[]
+}
+
+model domainModelEdge {
+  id                 String           @id
+  label              String?
+  sourceNodeId       String
+  targetNodeId       String
+  graph              domainModelGraph @relation(fields: [domainModelGraphId], references: [id], onDelete: Cascade)
+  domainModelGraphId String
+
+  sourceNode domainModelNode @relation(name: "SourceEdge", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode domainModelNode @relation(name: "TargetEdge", fields: [targetNodeId], references: [id], onDelete: Cascade)
+}
+
+model LearningResource{
+  id         String @id @default(cuid())
+  title       String
+  description String
+  url         String
+
+  domainModelNode domainModelNode @relation(fields: [domainModelNodeId], references: [id])
+  domainModelNodeId String
+}
