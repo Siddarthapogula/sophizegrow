@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "dev" : "nx dev",
-    "build" : "nx build"
+    "dev": "nx dev",
+    "build": "nx build"
   },
   "private": true,
   "dependencies": {
@@ -42,6 +42,7 @@
     "@swc/helpers": "~0.5.11",
     "@testing-library/dom": "10.4.0",
     "@testing-library/react": "16.1.0",
+    "@types/firebase": "^3.2.3",
     "@types/jest": "^29.5.12",
     "@types/node": "18.16.9",
     "@types/react": "19.0.0",
