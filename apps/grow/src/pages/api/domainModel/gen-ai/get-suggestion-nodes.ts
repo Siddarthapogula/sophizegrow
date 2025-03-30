@@ -114,7 +114,7 @@ async function executePrompt(context: {
     model: 'gpt-4o-mini',
     messages: [
       {
-        role: 'developer',
+        role: 'user',
         content: `Hey, I'm building a domain-based model for learners where my platform shows the path using nodes and edges for learning certain skills.
             Please generate appropriate successive nodes for the current input with the following details:
             - Name: ${context.name}
@@ -127,7 +127,7 @@ async function executePrompt(context: {
             -"url" : string, correct url of any documentation or youtube channel/playlist or github repo
             -"description" : string,
             Generate the id for every object using this function :  crypto.randomUUID()
-            Generate the output strictly in the form of an array of objects of size 3, where each object has the following properties:
+            Generate the output strictly in the form of an array of objects of size 2, where each object has the following properties:
             - "id"
             - "name"
             - "description"
@@ -136,7 +136,7 @@ async function executePrompt(context: {
             Please provide the output in JSON format without any additional text.`,
       },
     ],
-    max_tokens: 700,
+    max_tokens: 500,
   });
 
   return response.choices[0]?.message?.content;
