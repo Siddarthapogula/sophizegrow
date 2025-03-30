@@ -7,8 +7,8 @@ export default function SuccessiveNodes({data} : any) {
     return (
       <div onClick={()=>data.handleAddSuccessiveNodeClick(data)} className="animate-pulse animation-delay-200 bg-blue-200 p-4 rounded-lg opacity-40">
         <h1>{data.label}</h1>
-        <Handle type="target" style={{visibility: 'hidden'}} position={Position.Top} />
-        <Handle type="source" style={{visibility: 'hidden'}} position={Position.Bottom} />
+        <Handle type="target"  position={Position.Top} />
+        <Handle type="source"  position={Position.Bottom} />
       </div>
     );
 }

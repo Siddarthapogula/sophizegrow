@@ -13,8 +13,8 @@ export default function NormalNodes({ data, ...props }: any) {
         <TooltipTrigger asChild>
           <div className="bg-pink-200 p-4 rounded-lg">
             <h1>{data.label}</h1>
-            <Handle type="target" style={{visibility: 'hidden',}} position={Position.Top} />
-            <Handle type="source" style={{visibility: 'hidden'}} position={Position.Bottom} />
+            <Handle type="target"  position={Position.Top} />
+            <Handle type="source" position={Position.Bottom} />
           </div>  
         </TooltipTrigger>
         <TooltipContent className=' bg-white shadow-md' sideOffset={5}>
