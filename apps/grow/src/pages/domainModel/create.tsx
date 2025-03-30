@@ -1,8 +1,9 @@
-import { Edge, Node } from '@lib/type-utils';
+import {Edge, Node} from '../../lib/type-utils';
 import { addEdge, applyNodeChanges, Background, Controls, ReactFlow, ReactFlowInstance, useReactFlow } from '@xyflow/react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../components/context';
 
 function InstanceSetter({ setInstance }: { setInstance: (instance: ReactFlowInstance) => void }) {
   const instance = useReactFlow();
@@ -20,6 +21,12 @@ export default function CreateDomainModel() {
   const [edges, setEdges] = useState< Edge[]>([]);
   const [graphName, setGraphName] = useState('');
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const {user, loading} = useAuth();
+
+  if(!loading && !user){
+    router.push('/domainModel')
+  }
+
 
   const handlePaneContextMenu = (event: React.MouseEvent|MouseEvent) => {
     event.preventDefault();
@@ -58,16 +65,16 @@ export default function CreateDomainModel() {
     }
   };
 
-  const deleteNode = (event: React.MouseEvent, node : Node) => {
+  const deleteNode = (event: React.MouseEvent, node : any) => {
     event.preventDefault();
     if (window.confirm(`Are you sure you want to delete node "${node?.data?.label}"?`)) {
-      setNodes((nds : Node[]) => nds.filter((n  : Node) => n.id !== node?.id));
+      setNodes((nds : Node[]) => nds.filter((n  : any) => n.id !== node?.id));
       setEdges((eds : Edge[]) =>
         eds.filter((edge : Edge) => edge.source !== node.id && edge.target !== node?.id)
       );
     }
   };
-  const deleteEdge = (event: React.MouseEvent, edge: Edge) => {
+  const deleteEdge = (event: React.MouseEvent, edge: any) => {
     event.preventDefault();
     if (window.confirm('Are you sure you want to delete this edge?')) {
       setEdges((eds : any) => eds.filter((e : any) => e.id !== edge?.id));
@@ -80,8 +87,8 @@ export default function CreateDomainModel() {
 
   const handleSave = async  ()=>{
     try{
-      const nodeIds = nodes.map((node : Node) => node?.id);
-      const edgeIds = edges.map((edge : Edge) => edge?.id);
+      const nodeIds = nodes.map((node : any) => node?.id);
+      const edgeIds = edges.map((edge : any) => edge?.id);
       
       await axios.post('/api/domainModel/createDomainModel', { name : graphName, description : "", nodeIds, edgeIds, nodes, edges });
       alert('Graph created successfully');

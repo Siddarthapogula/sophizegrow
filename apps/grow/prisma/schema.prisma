@@ -13,17 +13,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum NodeType {
+  NORMAL
+  SUCCESSIVE
+}
+
 model domainModelGraph {
   id          String            @id @default(cuid())
   name        String
   description String
-  nodes       domainModelNode[]
+  nodes       domainModelNode[] 
   edges       domainModelEdge[]
 }
 
 model domainModelNode {
   id                 String           @id
   label              String
+  type               NodeType
   description        String?
   tag                String?
   positionX          Float
@@ -55,6 +61,6 @@ model LearningResource{
   description String
   url         String
 
-  domainModelNode domainModelNode @relation(fields: [domainModelNodeId], references: [id])
+  domainModelNode domainModelNode @relation(fields: [domainModelNodeId], references: [id], onDelete: Cascade)
   domainModelNodeId String
 }

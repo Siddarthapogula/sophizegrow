@@ -1,7 +1,7 @@
 export interface Node {
-    id : string;
-    data : {label : string, tag : string};
-    position : {x : number, y : number};
+    // id : string;
+    // data : {label : string, tag : string};
+    // position : {x : number, y : number};
 }
 
 export interface Edge {

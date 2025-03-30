@@ -14,7 +14,7 @@ export default async function handler(
   }
   const sourceNode = data?.source;
   const targetNode = data?.target;
-
+  const id = `${sourceNode}-${targetNode}`
   if (!sourceNode || !targetNode) {
     return res
       .status(400)
@@ -23,7 +23,7 @@ export default async function handler(
   try {
     await Prisma.domainModelEdge.create({
       data: {
-        id: `${sourceNode}-${targetNode}`,
+        id: data?.id??id,
         sourceNodeId: sourceNode,
         targetNodeId: targetNode,
         label: '',

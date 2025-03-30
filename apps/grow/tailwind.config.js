@@ -10,8 +10,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: 'hsl(0, 0%, 100%)',
-        foreground: 'hsl(222.2, 47.4%, 11.2%)',
+        background: 'hsl(222.2, 50.4%, 5.2%)',
+        foreground: 'hsl(0, 0%, 100%)',
         card: 'hsl(0, 0%, 100%)',
         'card-foreground': 'hsl(222.2, 47.4%, 11.2%)',
         popover: 'hsl(0, 0%, 100%)',
@@ -24,7 +24,7 @@ module.exports = {
         'muted-foreground': 'hsl(0, 0%, 40%)',
         accent: 'hsl(180, 70%, 60%)',
         'accent-foreground': 'hsl(0, 0%, 10%)',
-        destructive: 'hsl(0, 70%, 50%)',
+        destructive: 'hsl(4, 60%, 50%)',
         'destructive-foreground': 'hsl(0, 100%, 90%)',
         border: 'hsl(210, 20%, 90%)',
         input: 'hsl(210, 20%, 90%)',

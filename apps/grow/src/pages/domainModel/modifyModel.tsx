@@ -8,17 +8,30 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import axios from 'axios';
-import React, { useState, useEffect } from 'react';
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@grow/shared';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Edge, Node, Resource } from '@lib/type-utils';
+import {Edge, Node, Resource} from '../../lib/type-utils';
+import { useAuth } from '../../components/context';
+import SuccessiveNodes from '../../components/SuccessiveNodes';
+import NormalNodes from '../../components/normalNodes';
+import RightSideBar from '../../components/RightSideBar';
+import ResourceModal from '../../components/ResourcesModal';
+import {
+  addEdgeToGraph,
+  addLabelToEdge,
+  addNodeToGraph,
+  addResourceToNode,
+  deleteEdgeWithId,
+  deleteNodeFromGraph,
+  deleteResourceOfNode,
+  getDomainModel,
+  getResourcesOfNode,
+  updateResourceOfNode,
+} from '../../utils/apis';
+import NodesSkeleton from '../../components/NodesSkeleton';
+import { loadingEdges, loadingNodes } from '../../utils/constants';
+import NewlyAddedNodeLoading from '../../components/NewlyAddedNodeLoading';
+import { useToast } from '@grow/shared';
 
 function InstanceSetter({
   setInstance,
@@ -34,22 +47,40 @@ function InstanceSetter({
   return null;
 }
 
-export default function CreateDomainModel() {
+export default function ModifyDomainModel() {
+  const { user, loading } = useAuth();
+  const { toast, toasts } = useToast();
+  const nodeTypes = {
+    successive: SuccessiveNodes,
+    normal: NormalNodes,
+    loading: NodesSkeleton,
+    newlyAdded: NewlyAddedNodeLoading,
+  };
+
   const router = useRouter();
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const [nodes, setNodes] = useState<any[]>(loadingNodes);
+  const [edges, setEdges] = useState<any[]>(loadingEdges);
 
   const [isloading, setIsLoading] = useState(true);
 
-  const [selectedNode, setSelectedNode] = useState<Node>();
-  const [selectedNodeResources, setSelectedNodeResources] = useState<Resource[]>([]);
+  const [selectedNode, setSelectedNode] = useState<any>();
+  const [selectedNodeResources, setSelectedNodeResources] = useState<
+    Resource[]
+  >([]);
+
+  const debouncerTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [genAiNodes, setGenAiNodes] = useState<any>([]);
+  const genAiNodesRef = useRef<any>(genAiNodes);
+  const [genAiEdges, setGenAiEdges] = useState<any>([]);
+  const genAiEdgesRef = useRef<any>(genAiEdges);
 
   const [modalState, setModalState] = useState<{
-    isModalOpen: boolean,
-    isEditMode: boolean,
-    isAddingResource: boolean,
-    isUpdating: boolean,
-    updatingResource: Resource | null}>({
+    isModalOpen: boolean;
+    isEditMode: boolean;
+    isAddingResource: boolean;
+    isUpdating: boolean;
+    updatingResource: Resource | null;
+  }>({
     isModalOpen: false,
     isEditMode: false,
     isAddingResource: false,
@@ -66,15 +97,46 @@ export default function CreateDomainModel() {
   const [reactFlowInstance, setReactFlowInstance] =
     useState<ReactFlowInstance | null>(null);
 
+  if (!user && !loading) {
+    router.push('/domainModel');
+  }
+
   useEffect(() => {
     async function getGraphData() {
       setIsLoading(true);
       try {
-        const { data } = await axios.get('/api/domainModel/getDomainModel');
-        setNodes(data.nodes);
+        const data = await getDomainModel();
+        const wrappedNodes = data.nodes.map((nd: any) => {
+          return {
+            id: nd.id,
+            type: 'normal',
+            data: {
+              label: nd.data.label,
+              name: nd.data.label,
+              description: nd.description,
+              position: {
+                x: nd.position.x,
+                y: nd.position.y,
+              },
+              nodeId: nd.id,
+              handleAddSuccessiveNodeClick: (data: any) =>
+                handleAddSuccessiveNodeClick(data),
+            },
+            position: {
+              x: nd.position.x,
+              y: nd.position.y,
+            },
+          };
+        });
+        setNodes(wrappedNodes);
         setEdges(data.edges);
       } catch (e) {
-        alert('Error getting graph data');
+        toast({
+          title: 'Error getting graph data',
+          description: 'Please reload again later',
+          // variant: 'destructive',
+          duration: 2000,
+        });
       }
       setIsLoading(false);
     }
@@ -84,14 +146,14 @@ export default function CreateDomainModel() {
   useEffect(() => {
     async function getNodeResourceDetails() {
       try {
-        const { data } = await axios.get(
-          `/api/domainModel/node/getResources?nodeId=${
-            selectedNode?.id
-          }`
-        );
-        setSelectedNodeResources(data);
+        setSelectedNodeResources(await getResourcesOfNode(selectedNode?.id));
       } catch (e) {
-        alert('Error getting node details');
+        toast({
+          title: 'Error getting node resources',
+          description: 'Please reload again later',
+          variant: 'destructive',
+          duration: 3000,
+        });
       }
     }
     if (selectedNode) {
@@ -99,31 +161,32 @@ export default function CreateDomainModel() {
     }
   }, [selectedNode]);
 
+  // resource modal
+
   async function handleAddResource() {
     if (!resourceFormDetails.title || !resourceFormDetails.url) {
-      alert('Please enter title and url');
+      toast({
+        title: 'Please enter title and url',
+        description: 'try again with title and url',
+        variant: 'destructive',
+        duration: 2000,
+      });
       return;
     }
     const resource = {
-      nodeId: (selectedNode)?.id,
+      nodeId: selectedNode?.id,
       title: resourceFormDetails.title,
       description: resourceFormDetails.description,
       url: resourceFormDetails.url,
     };
-    const { data } = await axios.post(
-      '/api/domainModel/node/addResource',
-      resource
-    );
-    setSelectedNodeResources([
-      ...selectedNodeResources,
-      data.resource,
-    ]);
+    const data = await addResourceToNode(resource);
+    setSelectedNodeResources([...selectedNodeResources, data.resource]);
     setResourceFormDetails({ title: '', description: '', url: '' });
     setModalState({ ...modalState, isAddingResource: false });
   }
 
   async function deleteResource(resourceId: string) {
-    await axios.post('/api/domainModel/node/deleteResource', { resourceId });
+    await deleteResourceOfNode(resourceId);
     setSelectedNodeResources(
       selectedNodeResources.filter((res) => res.id !== resourceId)
     );
@@ -131,7 +194,12 @@ export default function CreateDomainModel() {
 
   async function handleUpdateResource() {
     if (!resourceFormDetails.title || !resourceFormDetails.url) {
-      alert('Please enter title and url for updating');
+      toast({
+        title: 'Please enter title and url for updating',
+        description: 'try again after entering title and url',
+        variant: 'destructive',
+        duration: 2000,
+      });
       return;
     }
     const resource = {
@@ -140,7 +208,7 @@ export default function CreateDomainModel() {
       description: resourceFormDetails.description,
       url: resourceFormDetails.url,
     };
-    await axios.post('/api/domainModel/node/updateResource', resource);
+    await updateResourceOfNode(resource);
     const updatedResources = selectedNodeResources.map((res: Resource) => {
       if (res.id === resource.id) {
         return resource;
@@ -155,6 +223,8 @@ export default function CreateDomainModel() {
     });
     setResourceFormDetails({ title: '', description: '', url: '' });
   }
+
+  // model modification functions
 
   const handlePaneContextMenu = async (
     event: React.MouseEvent | MouseEvent
@@ -172,49 +242,72 @@ export default function CreateDomainModel() {
     });
     const label = prompt('Enter node label:');
     const tag = prompt('enter current node tag : ');
+    const description = prompt('enter current node description : ');
     if (!label || label.trim() === '' || !tag) return;
     const newNode = {
-      id: Math.random().toString(),
-      data: { label, tag },
+      id: crypto.randomUUID(),
+      data: { label, tag, description: description},
       position: canvasCoords,
     };
     try {
-      await axios.post('/api/domainModel/update/addNode', newNode);
-      setNodes((nds: Node[]) => [...nds, newNode]);
+      await addNodeToGraph(newNode);
+      const addedNode = {
+        id: newNode.id,
+        type: 'normal',
+        data: {
+          label: newNode.data.label,
+          name: newNode.data.label,
+          description: description,
+          tag: tag,
+          position: {
+            x: newNode.position.x,
+            y: newNode.position.y,
+          },
+          nodeId: newNode.id,
+          handleAddSuccessiveNodeClick: (data: any) =>
+            handleAddSuccessiveNodeClick(data),
+        },
+        position: {
+          x: newNode.position.x,
+          y: newNode.position.y,
+        },
+      };
+      setNodes((nds: any) => [...nds, addedNode]);
     } catch (e) {
-      alert('Error adding node');
+      toast({
+        title: 'Error Adding Node',
+        description: 'try again please',
+        variant: 'destructive',
+        duration: 2000,
+      });
     }
   };
 
-  const onConnect = async (params: any) => {
-    setEdges((eds: Edge[]) => addEdge(params, eds));
-    try {
-      await axios.post('/api/domainModel/update/addEdge', params);
-    } catch (e) {
-      alert('Error adding edge');
-    }
-  };
-
-  const onEdgeClick = async (event: any, edge: Edge) => {
+  const onEdgeClick = async (event: any, edge: any) => {
     try {
       const newLabel = prompt('Enter edge label:', edge.label || '');
       if (newLabel !== null) {
-        axios.post('/api/domainModel/update/updateEdgeLabel', {
+        await addLabelToEdge({
           id: `${edge.source}-${edge.target}`,
           label: newLabel,
         });
-        setEdges((eds: Edge[]) =>
-          eds.map((e: Edge) =>
+        setEdges((eds: any) =>
+          eds.map((e: any) =>
             e.id === edge.id ? { ...e, label: newLabel } : e
           )
         );
       }
     } catch (e) {
-      alert('Error updating edge');
+      toast({
+        title: 'Error Updating Edge',
+        description: 'try again',
+        variant: 'destructive',
+        duration: 2000,
+      });
     }
   };
 
-  const deleteNode = async (event: React.MouseEvent, node: Node) => {
+  const deleteNode = async (event: React.MouseEvent, node: any) => {
     event.preventDefault();
     if (
       window.confirm(
@@ -222,263 +315,254 @@ export default function CreateDomainModel() {
       )
     ) {
       try {
-        const edgeId = (edges as Edge[]).find(
-          (edge: Edge) => edge.source === node.id || edge.target === node.id
+        const edgeId = (edges as any).find(
+          (edge: any) => edge.source === node.id || edge.target === node.id
         )?.id;
-        await axios.post('/api/domainModel/update/deletenode', {
-          edgeId,
-          nodeId: node.id,
-        });
-        setNodes((nds: Node[]) => nds.filter((n: Node) => n.id !== node.id));
-        setEdges((eds: Edge[]) =>
+        await deleteNodeFromGraph(edgeId, node.id);
+        setNodes((nds: any) => nds.filter((n: any) => n.id !== node.id));
+        setEdges((eds: any) =>
           eds.filter(
-            (edge: Edge) => edge.source !== node.id && edge.target !== node.id
+            (edge: any) => edge.source !== node.id && edge.target !== node.id
           )
         );
       } catch (e) {
-        alert('Error deleting node');
+        toast({
+          title: 'Error Deleting Node ',
+          description: 'please try again ',
+          variant: 'destructive',
+          duration: 2000,
+        });
       }
     }
   };
-  const deleteEdge = (event: React.MouseEvent, edge: Edge) => {
+
+  const deleteEdge = async (event: React.MouseEvent, edge: any) => {
     event.preventDefault();
     if (window.confirm('Are you sure you want to delete this edge?')) {
       try {
         const edgeId = edge.id;
-        axios.post('/api/domainModel/update/deleteEdge', { edgeId });
-        setEdges((eds: Edge[]) => eds.filter((e: Edge) => e.id !== edge.id));
+        await deleteEdgeWithId(edgeId);
+        setEdges((eds: any) => eds.filter((e: any) => e.id !== edge.id));
       } catch (e) {
-        alert('Error deleting edge');
+        toast({
+          title: 'Error Deleting Edge',
+          description: 'please try again ',
+          variant: 'destructive',
+          duration: 2000,
+        });
       }
     }
   };
 
+  // react-flow utils, for graph modification
+
   const onNodesChange = (changes: any) => {
-    setNodes((nds : Node[]) => applyNodeChanges(changes, nds));
+    setNodes((nds: any) => applyNodeChanges(changes, nds));
   };
 
-  function closeModal() {
-    setModalState({
-      ...modalState,
-      isModalOpen: false,
-      isUpdating: false,
-      updatingResource: null,
-      isEditMode: false,
-      isAddingResource: false,
-    });
-    setResourceFormDetails({ title: '', description: '', url: '' });
+  const onConnect = async (params: any) => {
+    try {
+      await addEdgeToGraph(params);
+    } catch (e) {
+      toast({
+        title: 'Error Adding Edge',
+        description: 'please try again ',
+        variant: 'destructive',
+        duration: 2000,
+      });
+    }
+    setEdges((eds: any) => addEdge(params, eds));
+  };
+
+  // gen-ai-nodes generation functions
+
+  const [genAiResources, setGenAiResources] = useState<any>();
+  // const [cachedNodeIds, setCachedNodeIds] = useState<any>();
+
+  async function handleNodeHover(event: React.MouseEvent, node: any) {
+    if (node.type === 'loading') return;
+    if (debouncerTimeout.current) clearTimeout(debouncerTimeout.current);
+    if (genAiNodesRef.current.find((nd: any) => nd.id === node.id)) return;
+    debouncerTimeout.current = setTimeout(async () => {
+      const context = {
+        name: node.data.label,
+        description: node.data.description,
+        tag: node.data.tag,
+        resources: [],
+      };
+      const { data } = await axios.post('/api/domainModel/gen-ai/get-suggestion-nodes', { context });
+      let nodeSpacingX = 300;
+      let nodeSpacingY = 150;
+      const newNodes = data.map((nd: any, index: any) => {
+        return {
+          id: nd.id,
+          type: 'successive',
+          data: {
+            label: nd.name,
+            description: nd.description,
+            tag: nd?.name,
+            name: nd.name,
+            position: {
+              x:
+                node.position.x +
+                (index - Math.floor(data.length / 2)) * nodeSpacingX,
+              y: node.position.y + nodeSpacingY,
+            },
+            resources: nd?.resources,
+            nodeId: nd.id,
+            handleAddSuccessiveNodeClick: (data: any) =>
+              handleAddSuccessiveNodeClick(data),
+          },
+          position: {
+            x:
+              node.position.x +
+              (index - Math.floor(data.length / 2)) * nodeSpacingX,
+            y: node.position.y + nodeSpacingY,
+          },
+        };
+      });
+
+      const newEdges = data.map((nd: any) => {
+        return {  
+          id: `${node.id}-${nd.id}`,
+          source: node.id,
+          target: nd.id,
+        };
+      });
+      setGenAiNodes(newNodes);
+      setGenAiEdges(newEdges);
+      genAiNodesRef.current = newNodes;
+      genAiEdgesRef.current = newEdges;
+    }, 1000);
   }
 
-  function handleNodeClick(event: React.MouseEvent, node: Node) {
+
+  async function handleAddSuccessiveNodeClick(data: any) {
+    const curNode = genAiNodesRef.current.find(
+      (nd: any) => nd.id === data.nodeId
+    );
+    console.log(curNode);
+    const curEdge = genAiEdgesRef.current.find(
+      (ed: any) => ed.target === data.nodeId
+    );
+
+    let updatedNodesForGenAiSuggestions = genAiNodesRef.current.map(
+      (nd: any) => {
+        if (nd.id == data.nodeId) {
+          return {
+            ...nd,
+            data: {
+              ...nd.data,
+              label: 'adding the suggested node',
+            },
+            type: 'newlyAdded',
+          };
+        }
+        return nd;
+      }
+    );
+
+    setGenAiNodes(updatedNodesForGenAiSuggestions);
+    genAiNodesRef.current = updatedNodesForGenAiSuggestions;
+
+    const newNode = {
+      id: data?.nodeId,
+      label: data?.name,
+      type: 'normal',
+      description: data?.description,
+      tag: 'gen-ai-nodes',
+      data: {
+        label: data?.name,
+        description: data?.description,
+        name: data?.name,
+        nodeId: data?.nodeId,
+        handleAddSuccessiveNodeClick: (data: any) =>
+          handleAddSuccessiveNodeClick(data),
+        position: data?.position,
+        resources: data?.resources,
+      },
+      position: data?.position,
+    };
+    try {
+      await addNodeToGraph(curNode);
+      await addEdgeToGraph(curEdge);
+    } catch (e) {
+      toast({
+        title: 'Error adding suggestion Node',
+        description: 'please try again ',
+        variant: 'destructive',
+        duration: 2000,
+      });
+      return;
+    }
+
+    updatedNodesForGenAiSuggestions = genAiNodesRef.current.filter(
+      (nd: any) => nd.id !== data.nodeId
+    );
+    const updatedEdgesForGenAiSuggestions = genAiEdgesRef.current.filter(
+      (edge: any) => edge.target !== data.nodeId
+    );
+    setGenAiNodes(updatedNodesForGenAiSuggestions);
+    setGenAiEdges(updatedEdgesForGenAiSuggestions);
+    genAiEdgesRef.current = updatedEdgesForGenAiSuggestions;
+    genAiNodesRef.current = updatedNodesForGenAiSuggestions;
+
+    setNodes((nds: any) => [...nds, newNode]);
+    setEdges((eds: any) => [...eds, curEdge]);
+  }
+
+
+  // node resources function
+  function handleNodeClick(event: React.MouseEvent, node: any) {
+    if (genAiNodesRef.current.find((nd: any) => nd.id == node.id)) return;
     setSelectedNode(node);
     setModalState({ ...modalState, isModalOpen: true });
   }
 
   return (
     <div className="flex flex-col h-screen w-full">
-      <div className="flex  gap-5 items-center p-4 bg-gray-200 border-b border-gray-300">
-        <h1>{'Modify Domain Model'}</h1>
-        <Button onClick={() => router.push('/domainModel')}>Back</Button>
-      </div>
       <div className="flex h-screen  bg-gray-100 border-b border-gray-200">
-        <div className="w-3/4 p-4 bg-gray-100">
-          {isloading && (
-            <div className="flex justify-center items-center h-full">
-              <p>Loading...</p>
-            </div>
-          )}
+        <div className="w-[77%] p-4 bg-gray-100">
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={[...nodes, ...genAiNodesRef.current]}
+            edges={[...edges, ...genAiEdgesRef.current]}
+            nodeTypes={nodeTypes}
             onConnect={onConnect}
-            onEdgeClick={onEdgeClick}
-            onEdgeContextMenu={deleteEdge}
             onNodesChange={onNodesChange}
+            onEdgeClick={onEdgeClick}
+            onNodeClick={handleNodeClick}
+            onEdgeContextMenu={deleteEdge}
             onNodeContextMenu={deleteNode}
             onPaneContextMenu={handlePaneContextMenu}
-            onNodeClick={handleNodeClick}
-            fitView
+            onNodeMouseEnter={handleNodeHover}
+            onNodeMouseLeave={() =>
+              debouncerTimeout.current && clearTimeout(debouncerTimeout.current)
+            }
+            onPaneClick={() => {
+              setGenAiEdges([]);
+              setGenAiNodes([]);
+              genAiEdgesRef.current = [];
+              genAiNodesRef.current = [];
+            }}
+            // fitView
           >
             <Controls />
             <Background />
             <InstanceSetter setInstance={setReactFlowInstance} />
           </ReactFlow>
         </div>
-        <div className="w-1/4 p-4 bg-gray-200">
-          <ul>
-            Help
-            <li>Right click on canvas to add a node</li>
-            <li>Right click on node to delete it</li>
-            <li>Right click on edge to delete it</li>
-            <li>Click on edge to edit its label</li>
-          </ul>
-        </div>
-        <Dialog open={modalState.isModalOpen} onOpenChange={closeModal}>
-          <DialogContent className="sm:max-w-[400px] p-4 space-y-4 bg-white rounded-lg shadow-md">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-indigo-600">
-                {selectedNode?.data?.label} Details
-              </DialogTitle>
-              <DialogDescription className="text-gray-500">
-                Description of the node.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center mb-2">
-                <h1 className="text-md font-semibold text-gray-700">
-                  Resources:
-                </h1>
-                <Button
-                  onClick={() => {
-                    setModalState({
-                      ...modalState,
-                      isEditMode: !modalState.isEditMode,
-                      isAddingResource: false,
-                      isUpdating: false,
-                    });
-                  }}
-                  className="bg-indigo-500 text-white px-3 py-1 text-sm"
-                >
-                  {modalState.isEditMode ? 'Done' : 'Edit'}
-                </Button>
-              </div>
-
-              {modalState.isEditMode && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => {
-                      setModalState({
-                        ...modalState,
-                        isAddingResource: true,
-                        isUpdating: false,
-                      });
-                      setResourceFormDetails({
-                        title: '',
-                        description: '',
-                        url: '',
-                      });
-                    }}
-                    className="bg-green-500 text-white px-3 py-1 text-sm"
-                  >
-                    Add
-                  </Button>
-                </div>
-              )}
-              {selectedNodeResources.length === 0 ? (
-                <p className="text-gray-400 italic">No resources found</p>
-              ) : (
-                selectedNodeResources.map((resource: Resource, index) => (
-                  <div
-                    key={index}
-                    className="border border-gray-300 rounded-lg p-3 bg-gray-50 shadow-sm hover:bg-gray-100 transition"
-                  >
-                    <a
-                      href={resource.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <h1 className="font-medium text-md text-blue-600">
-                        {resource.title}
-                      </h1>
-                    </a>
-                    <p className="text-gray-600 text-xs mb-1">
-                      {resource?.description}
-                    </p>
-                    {modalState.isEditMode && (
-                      <div className="flex space-x-1 mt-1">
-                        <Button
-                          className="bg-yellow-500 text-white px-2 py-1 text-xs"
-                          onClick={() => {
-                            setResourceFormDetails({
-                              title: resource.title,
-                              description: resource.description,
-                              url: resource.url,
-                            });
-                            setModalState({
-                              ...modalState,
-                              isUpdating: true,
-                              isAddingResource: false,
-                              updatingResource: resource,
-                            });
-                          }}
-                        >
-                          Update
-                        </Button>
-                        <Button
-                          onClick={() => deleteResource(resource.id)}
-                          className="bg-red-500 text-white px-2 py-1 text-xs"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-
-            {(modalState.isAddingResource || modalState.isUpdating) && (
-              <div className="space-y-2 border-t pt-2">
-                <label className="block text-gray-700 font-medium text-sm">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={resourceFormDetails.title}
-                  onChange={(e) =>
-                    setResourceFormDetails({
-                      ...resourceFormDetails,
-                      title: e.target.value,
-                    })
-                  }
-                  className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
-                />
-                <label className="block text-gray-700 font-medium text-sm">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={resourceFormDetails.description}
-                  onChange={(e) =>
-                    setResourceFormDetails({
-                      ...resourceFormDetails,
-                      description: e.target.value,
-                    })
-                  }
-                  className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
-                />
-                <label className="block text-gray-700 font-medium text-sm">
-                  URL
-                </label>
-                <input
-                  type="text"
-                  value={resourceFormDetails.url}
-                  onChange={(e) =>
-                    setResourceFormDetails({
-                      ...resourceFormDetails,
-                      url: e.target.value,
-                    })
-                  }
-                  className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
-                />
-                {
-                  <Button
-                    onClick={() => {
-                      if (modalState.isAddingResource) {
-                        handleAddResource();
-                      } else {
-                        handleUpdateResource();
-                      }
-                    }}
-                    className="bg-blue-500 text-white w-full mt-1 text-sm"
-                  >
-                    {modalState.isAddingResource ? 'Add' : 'Update'}
-                  </Button>
-                }
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <RightSideBar />
+        <ResourceModal
+          modalState={modalState}
+          resourceFormDetails={resourceFormDetails}
+          selectedNode={selectedNode}
+          selectedNodeResources={selectedNodeResources}
+          setResourceFormDetails={setResourceFormDetails}
+          setModalState={setModalState}
+          deleteResource={deleteResource}
+          handleAddResource={handleAddResource}
+          handleUpdateResource={handleUpdateResource}
+        />
       </div>
     </div>
   );

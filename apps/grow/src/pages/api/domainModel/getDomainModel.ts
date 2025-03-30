@@ -17,6 +17,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const nodes = graph?.nodes.map((node : any)=>{
         return {
             id : node.id,
+            description : node.description,
+            type : node.type,
             data : {label : node.label, tag : node.tag},
             position : {x : Number(node.positionX), y : Number(node.positionY)}
         }
