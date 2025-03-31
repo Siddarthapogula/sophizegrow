@@ -558,10 +558,12 @@ export default function ModifyDomainModel() {
           selectedNode={selectedNode}
           selectedNodeResources={selectedNodeResources}
           setResourceFormDetails={setResourceFormDetails}
+          setSelectedNodeResources={setSelectedNodeResources}
           setModalState={setModalState}
           deleteResource={deleteResource}
           handleAddResource={handleAddResource}
           handleUpdateResource={handleUpdateResource}
+          canModify= {true}
         />
       </div>
     </div>

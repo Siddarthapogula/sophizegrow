@@ -1,13 +1,15 @@
 import { Button } from '@grow/shared';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Background, ReactFlow } from '@xyflow/react';
+import { Background, ReactFlow, useStoreApi } from '@xyflow/react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-import {Edge, Node, Graph} from '../../lib/type-utils';
+import { Edge, Node, Graph, Resource } from '../../lib/type-utils';
 import { useAuth } from '../../components/context';
 import NormalNodes from '../../components/normalNodes';
 import { loadingEdges, loadingNodes } from '../../utils/constants';
 import NodesSkeleton from '../../components/NodesSkeleton';
+import ResourceModal from '../../components/ResourcesModal';
+import { getResourcesOfNode } from '../../utils/apis';
 
 export default function DashboardLayout() {
   const [nodes, setNodes] = useState<any[]>([]);
@@ -146,6 +148,31 @@ export default function DashboardLayout() {
     );
   }, [graphData]);
 
+  const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [selectedNodeResources, setSelectedNodeResources] = useState<any>([]);
+  const [modalState, setModalState] = useState<{
+    isModalOpen: boolean;
+    isEditMode: boolean;
+    isAddingResource: boolean;
+    isUpdating: boolean;
+    updatingResource: Resource | null;
+  }>({
+    isModalOpen: false,
+    isEditMode: false,
+    isAddingResource: false,
+    isUpdating: false,
+    updatingResource: null,
+  });
+
+  useEffect(()=>{
+    async function getNodeResourceDetails(){
+      setSelectedNodeResources(await getResourcesOfNode(selectedNode?.id));
+    }
+    if(selectedNode){
+      getNodeResourceDetails();
+    }
+  }, [selectedNode])
+
   return (
     <div className="w-full h-screen flex flex-col">
       <div className="flex flex-row w-full h-full">
@@ -159,6 +186,17 @@ export default function DashboardLayout() {
               nodes={filteredNodes}
               edges={filteredEdges}
               nodeTypes={nodeTypes}
+              onNodeClick={(event, node) => {
+                setSelectedNode(node);
+                setModalState({
+                  ...modalState,
+                  isModalOpen: true,
+                  isEditMode: false,
+                  isAddingResource: false,
+                  isUpdating: false,
+                  updatingResource: null,
+                });
+              }}
               fitView
             >
               <Background />
@@ -194,6 +232,19 @@ export default function DashboardLayout() {
           </select>
         </div>
       </div>
+      <ResourceModal
+        modalState={modalState}
+        resourceFormDetails={null}
+        selectedNode={selectedNode}
+        selectedNodeResources={selectedNodeResources}
+        setResourceFormDetails={null}
+        setModalState={setModalState}
+        setSelectedNodeResources={setSelectedNodeResources}
+        deleteResource={null}
+        handleAddResource={null}
+        handleUpdateResource={null}
+        canModify={false}
+      />
     </div>
   );
 }

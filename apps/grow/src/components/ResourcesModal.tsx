@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@grow/shared';
-import {Resource} from '../lib/type-utils'
+import { Resource } from '../lib/type-utils';
 
 export default function ResourceModal({
   modalState,
@@ -15,11 +15,12 @@ export default function ResourceModal({
   setModalState,
   resourceFormDetails,
   setResourceFormDetails,
+  setSelectedNodeResources,
   handleAddResource,
   handleUpdateResource,
   deleteResource,
+  canModify,
 }: any) {
-
   const closeModal = () => {
     setModalState({
       ...modalState,
@@ -29,7 +30,10 @@ export default function ResourceModal({
       isUpdating: false,
       updatingResource: null,
     });
-    setResourceFormDetails({ title: '', description: '', url: '' });
+    if (canModify) {
+      setResourceFormDetails({ title: '', description: '', url: '' });
+    }
+    setSelectedNodeResources([]);
   };
 
   return (
@@ -46,22 +50,24 @@ export default function ResourceModal({
         <div className="space-y-3">
           <div className="flex justify-between items-center mb-2">
             <h1 className="text-md font-semibold text-gray-700">Resources:</h1>
-            <Button
-              onClick={() => {
-                setModalState({
-                  ...modalState,
-                  isEditMode: !modalState.isEditMode,
-                  isAddingResource: false,
-                  isUpdating: false,
-                });
-              }}
-              className="bg-indigo-500 text-white px-3 py-1 text-sm"
-            >
-              {modalState.isEditMode ? 'Done' : 'Edit'}
-            </Button>
+            {canModify && (
+              <Button
+                onClick={() => {
+                  setModalState({
+                    ...modalState,
+                    isEditMode: !modalState.isEditMode,
+                    isAddingResource: false,
+                    isUpdating: false,
+                  });
+                }}
+                className="bg-indigo-500 text-white px-3 py-1 text-sm"
+              >
+                {modalState.isEditMode ? 'Done' : 'Edit'}
+              </Button>
+            )}
           </div>
 
-          {modalState.isEditMode && (
+          {canModify && modalState.isEditMode && (
             <div className="flex justify-end">
               <Button
                 onClick={() => {
@@ -102,7 +108,7 @@ export default function ResourceModal({
                 <p className="text-gray-600 text-xs mb-1">
                   {resource?.description}
                 </p>
-                {modalState.isEditMode && (
+                {canModify && modalState.isEditMode && (
                   <div className="flex space-x-1 mt-1">
                     <Button
                       className="bg-yellow-500 text-white px-2 py-1 text-xs"
@@ -134,66 +140,67 @@ export default function ResourceModal({
             ))
           )}
         </div>
-        {(modalState.isAddingResource || modalState.isUpdating) && (
-          <div className="space-y-2 border-t pt-2">
-            <label className="block text-gray-700 font-medium text-sm">
-              Title
-            </label>
-            <input
-              type="text"
-              value={resourceFormDetails.title}
-              onChange={(e) =>
-                setResourceFormDetails({
-                  ...resourceFormDetails,
-                  title: e.target.value,
-                })
+        {canModify &&
+          (modalState.isAddingResource || modalState.isUpdating) && (
+            <div className="space-y-2 border-t pt-2">
+              <label className="block text-gray-700 font-medium text-sm">
+                Title
+              </label>
+              <input
+                type="text"
+                value={resourceFormDetails.title}
+                onChange={(e) =>
+                  setResourceFormDetails({
+                    ...resourceFormDetails,
+                    title: e.target.value,
+                  })
+                }
+                className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
+              />
+              <label className="block text-gray-700 font-medium text-sm">
+                Description
+              </label>
+              <input
+                type="text"
+                value={resourceFormDetails.description}
+                onChange={(e) =>
+                  setResourceFormDetails({
+                    ...resourceFormDetails,
+                    description: e.target.value,
+                  })
+                }
+                className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
+              />
+              <label className="block text-gray-700 font-medium text-sm">
+                URL
+              </label>
+              <input
+                type="text"
+                value={resourceFormDetails.url}
+                onChange={(e) =>
+                  setResourceFormDetails({
+                    ...resourceFormDetails,
+                    url: e.target.value,
+                  })
+                }
+                className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
+              />
+              {
+                <Button
+                  onClick={() => {
+                    if (modalState.isAddingResource) {
+                      handleAddResource();
+                    } else {
+                      handleUpdateResource();
+                    }
+                  }}
+                  className="bg-blue-500 text-white w-full mt-1 text-sm"
+                >
+                  {modalState.isAddingResource ? 'Add' : 'Update'}
+                </Button>
               }
-              className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
-            />
-            <label className="block text-gray-700 font-medium text-sm">
-              Description
-            </label>
-            <input
-              type="text"
-              value={resourceFormDetails.description}
-              onChange={(e) =>
-                setResourceFormDetails({
-                  ...resourceFormDetails,
-                  description: e.target.value,
-                })
-              }
-              className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
-            />
-            <label className="block text-gray-700 font-medium text-sm">
-              URL
-            </label>
-            <input
-              type="text"
-              value={resourceFormDetails.url}
-              onChange={(e) =>
-                setResourceFormDetails({
-                  ...resourceFormDetails,
-                  url: e.target.value,
-                })
-              }
-              className="border border-gray-300 rounded-md p-1 w-full focus:ring focus:ring-indigo-300 text-sm"
-            />
-            {
-              <Button
-                onClick={() => {
-                  if (modalState.isAddingResource) {
-                    handleAddResource();
-                  } else {
-                    handleUpdateResource();
-                  }
-                }}
-                className="bg-blue-500 text-white w-full mt-1 text-sm"
-              >
-                {modalState.isAddingResource ? 'Add' : 'Update'}
-              </Button>
-            }
-          </div>
-        )}
+            </div>
+          )}
       </DialogContent>
     </Dialog>
   );
