@@ -82,7 +82,7 @@ export default function CreateDomainModel() {
   };
 
   const onNodesChange = (changes : any) => {
-    setNodes((nds : any) => applyNodeChanges(changes, nds));
+    setNodes((nds : any[]) => applyNodeChanges(changes, nds));
   };
 
   const handleSave = async  ()=>{

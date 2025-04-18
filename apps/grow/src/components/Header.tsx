@@ -17,7 +17,7 @@ export default function Header() {
       if (!user?.email) return;
       try {
         const allUsers = await getAllUsers();
-        const matchedUser = allUsers.find((u) => u.email === user.email);
+        const matchedUser = allUsers.find((u : any) => u.email === user.email);
         if (matchedUser) {
           setIsAdmin(matchedUser.isAdmin);
         }

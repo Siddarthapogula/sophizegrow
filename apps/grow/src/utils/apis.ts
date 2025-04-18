@@ -71,6 +71,7 @@ export async function addLabelToEdge({ id, label }: any) {
 export async function getAllUsers() {
   //some condition of who can access this api either internally or from here only
   const { data } = await axios.get('/api/getAllUsers');
+  console.log(data);
   return data;
 }
 export async function getCertifications(userId: string) {
@@ -100,5 +101,10 @@ export async function unCertify(
     learnerId,
     certifierId,
   });
+  return data;
+}
+
+export async function createUser(user: any){
+  const { data } = await axios.post('/api/auth/createUser', user);
   return data;
 }

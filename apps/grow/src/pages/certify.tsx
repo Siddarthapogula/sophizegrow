@@ -13,7 +13,7 @@ import { Certificate, DomainModel, User } from '../lib/type-utils';
 export default function CertifyPage() {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [domainModel, setDomainModel] = useState<DomainModel | null>(null);
+  const [domainModel, setDomainModel] = useState<any>(null);
   const [certifications, setCertifications] = useState<Certificate[]>([]);
 
   const { user } = useAuth();
@@ -33,6 +33,7 @@ export default function CertifyPage() {
     };
     fetchData();
   }, []);
+  
   useEffect(() => {
     const fetchCertifications = async () => {
       try {
@@ -107,7 +108,7 @@ export default function CertifyPage() {
               </h2>
               <div className="overflow-y-auto max-h-72 pr-2 space-y-3">
                 {domainModel &&
-                  domainModel.nodes?.map((node) => {
+                  domainModel.nodes?.map((node : any) => {
                     const certified = isCertified(node.id);
                     return (
                       <div

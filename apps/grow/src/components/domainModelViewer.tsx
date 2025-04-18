@@ -17,7 +17,7 @@ const DomainModelViewer = ({
   };
   certifications: Certificate[];
 }) => {
-  const [nodes, setNodes] = useState<Node[]>([]);
+  const [nodes, setNodes] = useState<any>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [selectedNodeResources, setSelectedNodeResources] = useState<any>([]);
@@ -66,7 +66,7 @@ const DomainModelViewer = ({
     }
   }, [selectedNode]);
   const onNodesChange = (changes: any) => {
-    setNodes((nds: any) => applyNodeChanges(changes, nds));
+    setNodes((nds : any[]) => applyNodeChanges(changes, nds));
   };
 
   return (
