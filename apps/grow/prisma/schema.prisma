@@ -18,11 +18,39 @@ enum NodeType {
   SUCCESSIVE
 }
 
+model User {
+  id             String  @id @default(uuid())
+  name           String?
+  email          String  @unique
+  organizationId String?
+
+  createdAt DateTime @default(now())
+  isAdmin   Boolean  @default(false)
+
+  // Relations
+  certificationsGiven  Certification[] @relation("Certifier")
+  certificationsEarned Certification[] @relation("Learner")
+}
+
+model Certification {
+  id          String @id @default(cuid())
+  certifier   User   @relation("Certifier", fields: [certifierId], references: [id])
+  certifierId String
+
+  learner   User   @relation("Learner", fields: [learnerId], references: [id])
+  learnerId String
+
+  ability   domainModelNode @relation(fields: [abilityId], references: [id])
+  abilityId String
+
+  certifiedAt DateTime @default(now())
+}
+
 model domainModelGraph {
   id          String            @id @default(cuid())
   name        String
   description String
-  nodes       domainModelNode[] 
+  nodes       domainModelNode[]
   edges       domainModelEdge[]
 }
 
@@ -41,6 +69,7 @@ model domainModelNode {
   incomingEdges domainModelEdge[] @relation(name: "TargetEdge")
 
   LearningResources LearningResource[]
+  certifications    Certification[]
 }
 
 model domainModelEdge {
@@ -55,12 +84,12 @@ model domainModelEdge {
   targetNode domainModelNode @relation(name: "TargetEdge", fields: [targetNodeId], references: [id], onDelete: Cascade)
 }
 
-model LearningResource{
-  id         String @id @default(cuid())
+model LearningResource {
+  id          String @id @default(cuid())
   title       String
   description String
   url         String
 
-  domainModelNode domainModelNode @relation(fields: [domainModelNodeId], references: [id], onDelete: Cascade)
+  domainModelNode   domainModelNode @relation(fields: [domainModelNodeId], references: [id], onDelete: Cascade)
   domainModelNodeId String
 }
