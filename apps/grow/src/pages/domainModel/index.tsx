@@ -1,6 +1,6 @@
 import { Button } from '@grow/shared';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Background, ReactFlow, useStoreApi } from '@xyflow/react';
+import { Background, ReactFlow } from '@xyflow/react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { Edge, Node, Graph, Resource } from '../../lib/type-utils';
@@ -10,8 +10,9 @@ import { loadingEdges, loadingNodes } from '../../utils/constants';
 import NodesSkeleton from '../../components/NodesSkeleton';
 import ResourceModal from '../../components/ResourcesModal';
 import { getResourcesOfNode } from '../../utils/apis';
+import { getDynamicalLayoutElements } from '../../utils/domainModelUtils';
 
-export default function DashboardLayout() {
+export default function DomainModel() {
   const [nodes, setNodes] = useState<any[]>([]);
   const [edges, setEdges] = useState<any[]>([]);
 
@@ -19,12 +20,10 @@ export default function DashboardLayout() {
   const [filteredEdges, setFilteredEdges] = useState<any[]>([]);
 
   const [graphData, setGraphData] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const { user } = useAuth();
-
   const router = useRouter();
+  const { user, isUserAdmin, loading } = useAuth();
 
   const nodeTypes = {
     normal: NormalNodes,
@@ -38,58 +37,34 @@ export default function DashboardLayout() {
         setFilteredEdges(loadingEdges);
         const { data } = await axios.get(`/api/domainModel/getDomainModel`);
         setGraphData(data);
-        setNodes((prev) => {
-          return data.nodes.map((nd: any) => {
-            return {
-              id: nd.id,
-              type: 'normal',
-              data: {
-                label: nd.data.label,
-                tag: nd.data.tag,
-                nodeId: nd.id,
-                description: nd?.description,
-                name: nd?.name,
-                position: {
-                  x: nd.position.x,
-                  y: nd.position.y,
-                },
-              },
+        const dElements = getDynamicalLayoutElements(data.nodes, data.edges);
+        const updatedNodes = dElements.nodes.map((nd: any) => {
+          return {
+            id: nd.id,
+            type: 'normal',
+            data: {
+              label: nd.data.label,
+              tag: nd.data.tag,
+              nodeId: nd.id,
+              description: nd?.description,
+              name: nd?.name,
               position: {
                 x: nd.position.x,
                 y: nd.position.y,
               },
-            };
-          });
+            },
+            position: {
+              x: nd.position.x,
+              y: nd.position.y,
+            },
+          };
         });
-        setEdges(data.edges);
-        setFilteredNodes((prev) => {
-          return data.nodes.map((nd: any) => {
-            return {
-              id: nd.id,
-              type: 'normal',
-              data: {
-                label: nd.data.label,
-                tag: nd.tag,
-                nodeId: nd.id,
-                description: nd?.description,
-                name: nd?.name,
-                position: {
-                  x: nd.position.x,
-                  y: nd.position.y,
-                },
-              },
-              position: {
-                x: nd.position.x,
-                y: nd.position.y,
-              },
-            };
-          });
-        });
-        setFilteredEdges(data.edges);
+        setNodes(updatedNodes);
+        setEdges(dElements.edges);
+        setFilteredNodes(updatedNodes);
+        setFilteredEdges(dElements.edges);
       } catch (err) {
         setError('Error fetching graph data.');
-      } finally {
-        setLoading(false);
       }
     };
     getGraphData();
@@ -164,14 +139,14 @@ export default function DashboardLayout() {
     updatingResource: null,
   });
 
-  useEffect(()=>{
-    async function getNodeResourceDetails(){
+  useEffect(() => {
+    async function getNodeResourceDetails() {
       setSelectedNodeResources(await getResourcesOfNode(selectedNode?.id));
     }
-    if(selectedNode){
+    if (selectedNode) {
       getNodeResourceDetails();
     }
-  }, [selectedNode])
+  }, [selectedNode]);
 
   return (
     <div className="w-full h-screen flex flex-col">
@@ -197,7 +172,7 @@ export default function DashboardLayout() {
                   updatingResource: null,
                 });
               }}
-              fitView
+              // fitView
             >
               <Background />
             </ReactFlow>
@@ -208,7 +183,7 @@ export default function DashboardLayout() {
           )}
         </div>
         <div className="w-[23%] p-4 bg-white border-l border-gray-200 shadow-md rounded-lg overflow-y-auto">
-          {user && (
+          {isUserAdmin && (
             <Button
               onClick={() => router.push('/domainModel/modifyModel')}
               className="w-full mb-4 py-2 text-white bg-blue-600 hover:bg-blue-700 transition rounded-md"

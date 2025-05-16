@@ -21,7 +21,7 @@ export default function NormalNodes({ data, ...props }: any) {
           <div className=" rounded-lg">
             <h1 className="text-lg text-blue-400 font-semibold">{data.label}</h1>
             <h1 className="text-sm text-teal-900 font-semibold">{data.description}</h1>
-          </div>
+          </div>description
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

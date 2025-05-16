@@ -11,7 +11,7 @@ export default function CertifiedNode({ data, ...props }: any) {
     <TooltipProvider delayDuration={0}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="relative bg-gradient-to-br from-green-200 to-green-100 p-4 rounded-xl border-2 border-green-400 shadow-lg cursor-move flex flex-col gap-2 group transition-transform hover:scale-105">
+          <div className="relative bg-gradient-to-br from-green-200 to-green-100 p-4 rounded-xl border-2 border-green-400 shadow-lg  flex flex-col gap-2 group transition-transform hover:scale-105">
             <div className="absolute top-0 right-0 bg-green-500 text-white text-xs px-2 py-1 rounded-bl-lg font-bold z-10">
               CERTIFIED
             </div>

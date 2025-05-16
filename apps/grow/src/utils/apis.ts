@@ -54,7 +54,6 @@ export async function deleteNodeFromGraph(edgeId: string, nodeId: string) {
 }
 
 export async function deleteEdgeWithId(edgeId: string) {
-  console.log(edgeId);
   const { data } = await axios.post('/api/domainModel/update/deleteEdge', {
     edgeId,
   });
@@ -70,12 +69,21 @@ export async function addLabelToEdge({ id, label }: any) {
 
 export async function getAllUsers() {
   //some condition of who can access this api either internally or from here only
-  const { data } = await axios.get('/api/getAllUsers');
-  console.log(data);
+  try{
+    const { data } = await axios.get('/api/getAllUsers');
+    return data;
+  }catch(err){
+    console.error('Error fetching users:', err);
+    return [];
+  }
+}
+
+export async function getUserInfo(userEmail: string) {
+  const { data } = await axios.get(`/api/getUserInfo?userEmail=${userEmail}`);
   return data;
 }
+
 export async function getCertifications(userId: string) {
-  console.log({ userId });
   const { data } = await axios.get(`/api/certifications/${userId}`);
   return data;
 }
@@ -104,7 +112,12 @@ export async function unCertify(
   return data;
 }
 
-export async function createUser(user: any){
+export async function createUser(user: any) {
   const { data } = await axios.post('/api/auth/createUser', user);
+  return data;
+}
+
+export async function getUserCertifications(userId: string) {
+  const { data } = await axios.get(`/api/certifications/${userId}`);
   return data;
 }

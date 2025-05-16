@@ -34,13 +34,13 @@ model User {
 
 model Certification {
   id          String @id @default(cuid())
-  certifier   User   @relation("Certifier", fields: [certifierId], references: [id])
+  certifier   User   @relation("Certifier", fields: [certifierId], references: [id], onDelete:  Cascade)
   certifierId String
 
-  learner   User   @relation("Learner", fields: [learnerId], references: [id])
+  learner   User   @relation("Learner", fields: [learnerId], references: [id], onDelete:  Cascade)
   learnerId String
 
-  ability   domainModelNode @relation(fields: [abilityId], references: [id])
+  ability   domainModelNode @relation(fields: [abilityId], references: [id], onDelete:  Cascade)
   abilityId String
 
   certifiedAt DateTime @default(now())
