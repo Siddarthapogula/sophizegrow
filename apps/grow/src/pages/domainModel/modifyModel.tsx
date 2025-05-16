@@ -10,7 +10,7 @@ import {
 import axios from 'axios';
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import {Edge, Node, Resource} from '../../lib/type-utils';
+import { Resource } from '../../lib/type-utils';
 import { useAuth } from '../../components/context';
 import SuccessiveNodes from '../../components/SuccessiveNodes';
 import NormalNodes from '../../components/normalNodes';
@@ -32,6 +32,7 @@ import NodesSkeleton from '../../components/NodesSkeleton';
 import { loadingEdges, loadingNodes } from '../../utils/constants';
 import NewlyAddedNodeLoading from '../../components/NewlyAddedNodeLoading';
 import { useToast } from '@grow/shared';
+import { getDynamicalLayoutElements } from '../../utils/domainModelUtils';
 
 function InstanceSetter({
   setInstance,
@@ -48,8 +49,14 @@ function InstanceSetter({
 }
 
 export default function ModifyDomainModel() {
-  const { user, loading } = useAuth();
-  const { toast, toasts } = useToast();
+
+  
+  const router = useRouter();
+  const { user, loading, isUserAdmin} = useAuth();
+  if(!isUserAdmin && !loading){
+    router.push('/');
+  }
+  const { toast } = useToast();
   const nodeTypes = {
     successive: SuccessiveNodes,
     normal: NormalNodes,
@@ -57,7 +64,6 @@ export default function ModifyDomainModel() {
     newlyAdded: NewlyAddedNodeLoading,
   };
 
-  const router = useRouter();
   const [nodes, setNodes] = useState<any[]>(loadingNodes);
   const [edges, setEdges] = useState<any[]>(loadingEdges);
 
@@ -100,6 +106,33 @@ export default function ModifyDomainModel() {
   if (!user && !loading) {
     router.push('/domainModel');
   }
+  function takeNodesAndEdgesAndReturnDynamicPositionedNodesAndEdges(
+    curNodes: any,
+    curEdges: any
+  ) {
+    const dElements = getDynamicalLayoutElements(curNodes, curEdges);
+    const updatedNodes = dElements.nodes.map((nd: any) => {
+      return {
+        id: nd.id,
+        type: (nd.type as string).toLowerCase(),
+        data: {
+          label: nd.data.label,
+          name: nd.data.label,
+          description: nd.data.description,
+          position: {
+            x: nd.position.x,
+            y: nd.position.y,
+          },
+        },
+        position: {
+          x: nd.position.x,
+          y: nd.position.y,
+        },
+      };
+    });
+    const updatedEdges = (dElements as any).edges;
+    return { updatedNodes, updatedEdges };
+  }
 
   useEffect(() => {
     async function getGraphData() {
@@ -128,8 +161,13 @@ export default function ModifyDomainModel() {
             },
           };
         });
-        setNodes(wrappedNodes);
-        setEdges(data.edges);
+        const wrapped =
+          takeNodesAndEdgesAndReturnDynamicPositionedNodesAndEdges(
+            wrappedNodes,
+            data.edges
+          );
+        setNodes(wrapped.updatedNodes);
+        setEdges(wrapped.updatedEdges);
       } catch (e) {
         toast({
           title: 'Error getting graph data',
@@ -246,7 +284,7 @@ export default function ModifyDomainModel() {
     if (!label || label.trim() === '' || !tag) return;
     const newNode = {
       id: crypto.randomUUID(),
-      data: { label, tag, description: description},
+      data: { label, tag, description: description },
       position: canvasCoords,
     };
     try {
@@ -272,7 +310,12 @@ export default function ModifyDomainModel() {
           y: newNode.position.y,
         },
       };
-      setNodes((nds: any) => [...nds, addedNode]);
+      const upTotalNodes = [...nodes, addedNode];
+      const wrapped = takeNodesAndEdgesAndReturnDynamicPositionedNodesAndEdges(
+        upTotalNodes,
+        edges
+      );
+      setNodes(wrapped.updatedNodes);
     } catch (e) {
       toast({
         title: 'Error Adding Node',
@@ -390,7 +433,10 @@ export default function ModifyDomainModel() {
         tag: node.data.tag,
         resources: [],
       };
-      const { data } = await axios.post('/api/domainModel/gen-ai/get-suggestion-nodes', { context });
+      const { data } = await axios.post(
+        '/api/domainModel/gen-ai/get-suggestion-nodes',
+        { context }
+      );
       let nodeSpacingX = 300;
       let nodeSpacingY = 150;
       const newNodes = data.map((nd: any, index: any) => {
@@ -423,25 +469,27 @@ export default function ModifyDomainModel() {
       });
 
       const newEdges = data.map((nd: any) => {
-        return {  
+        return {
           id: `${node.id}-${nd.id}`,
           source: node.id,
           target: nd.id,
         };
       });
-      setGenAiNodes(newNodes);
-      setGenAiEdges(newEdges);
+      const updated = takeNodesAndEdgesAndReturnDynamicPositionedNodesAndEdges(
+        [...nodes, ...newNodes],
+        [...edges, ...newEdges]
+      );
+      setGenAiNodes(updated.updatedNodes);
+      setGenAiEdges(updated.updatedEdges);
       genAiNodesRef.current = newNodes;
       genAiEdgesRef.current = newEdges;
     }, 1000);
   }
 
-
   async function handleAddSuccessiveNodeClick(data: any) {
     const curNode = genAiNodesRef.current.find(
       (nd: any) => nd.id === data.nodeId
     );
-    console.log(curNode);
     const curEdge = genAiEdgesRef.current.find(
       (ed: any) => ed.target === data.nodeId
     );
@@ -511,7 +559,6 @@ export default function ModifyDomainModel() {
     setEdges((eds: any) => [...eds, curEdge]);
   }
 
-
   // node resources function
   function handleNodeClick(event: React.MouseEvent, node: any) {
     if (genAiNodesRef.current.find((nd: any) => nd.id == node.id)) return;
@@ -563,7 +610,7 @@ export default function ModifyDomainModel() {
           deleteResource={deleteResource}
           handleAddResource={handleAddResource}
           handleUpdateResource={handleUpdateResource}
-          canModify= {true}
+          canModify={true}
         />
       </div>
     </div>

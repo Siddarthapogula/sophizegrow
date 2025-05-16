@@ -1,32 +1,32 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../components/context';
-import { getAllUsers, getDomainModel } from '../utils/apis';
+import {
+  getDomainModel,
+  getUserCertifications,
+  getUserInfo,
+} from '../utils/apis';
 import DomainModelViewer from '../components/domainModelViewer';
 import { Certificate, DomainModel, User } from '../lib/type-utils';
+import { useRouter } from 'next/navigation';
 
 export default function CertifyPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [domainModels, setDomainModels] = useState<DomainModel | null>(null);
   const [certifications, setCertifications] = useState<Certificate[]>([]);
 
-  const { user } = useAuth();
-
+  const { user, loading} = useAuth();
+  const router = useRouter();
+  if(!user && !loading){
+    router.push('/');
+  }
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [allUsers, domainModelsRes] = await Promise.all([
-          getAllUsers(),
-          getDomainModel(),
-        ]);
-        setDomainModels(domainModelsRes);
-        //here currentUser can be obtained by creating separate function getUserInfo or
-        // something like that which gives detail of current logged in user from
-        // postgresDb and not firebase ,instead of this approach
-        const matchedUser = allUsers.find((u: User) => u.email === user?.email);
-        if (matchedUser) {
-          setCurrentUser(matchedUser);
-        }
+        const domainModel = await getDomainModel();
+        setDomainModels(domainModel);
+        const userDataFromEmail = await getUserInfo(user?.email as string);
+        setCurrentUser(userDataFromEmail);
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -37,10 +37,10 @@ export default function CertifyPage() {
   useEffect(() => {
     const fetchCertifications = async () => {
       try {
-        const { data } = await axios.get(
-          `/api/certifications/${currentUser?.id}`
+        const { certifications } = await getUserCertifications(
+          currentUser?.id as string
         );
-        setCertifications(data.certifications || []);
+        setCertifications(certifications);
       } catch (error) {
         console.error('Error fetching certifications:', error);
       }
